@@ -1,0 +1,13 @@
+{
+  "name": "futbot",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp para organizar partidos de fútbol",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "baileys": "^6.17.16",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
