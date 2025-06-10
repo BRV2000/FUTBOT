@@ -205,11 +205,11 @@ async function connectBot() {
 Este bot fue creado con ❤️ para facilitar la organización de partidos de fútbol entre amigos.
 
 🌐 Más sobre mí:
-GitHub: https://github.com/BrandonRobles
-Instagram: @brandon.codes
+GitHub: https://github.com/BRV2000/BRV2000
+LinkedIn: https://www.linkedin.com/in/brandonroblesv/
 
 ☕ ¿Querés apoyar el proyecto?
-https://www.buymeacoffee.com/brandon
+https://coff.ee/brandonroblesv
 
 ¡Gracias por usar el bot! ⚽🔥`
       });
