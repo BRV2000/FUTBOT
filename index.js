@@ -8,6 +8,7 @@ const qrcode = require("qrcode-terminal");
 const partidos = {}; // Lista de jugadores por grupo
 const equiposGenerados = {}; // Equipos ya formados
 const listasGeneradas = {}; // Cache de listas de jugadores
+const horaPartido = {}; // Hora programada del partido
 
 async function connectBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
@@ -39,6 +40,20 @@ async function connectBot() {
     }
   });
 
+  setInterval(() => {
+    const ahora = new Date();
+    const horaActual = ahora.toTimeString().slice(0, 5);
+
+    for (const chatId in horaPartido) {
+      if (horaPartido[chatId] === horaActual) {
+        delete partidos[chatId];
+        delete equiposGenerados[chatId];
+        delete listasGeneradas[chatId];
+        delete horaPartido[chatId];
+      }
+    }
+  }, 60000);
+
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message || msg.key.fromMe) return;
@@ -53,15 +68,22 @@ async function connectBot() {
 
     if (texto.includes("hola") || texto.includes("buenas")) {
       await sock.sendMessage(chatId, {
-        text: `¡Hola ${nombre}! 👋 ¿Listo para organizar un partido? Usa #partido o #mejenga para empezar.`,
+        text: `¡Hola ${nombre}! 👋 Soy FUTBOT, tu asistente para organizar partidos ⚽\n\n📌 Usa *#partido* o *#mejenga* para crear una nueva lista de jugadores.\n❓ Escribe *#ayuda* para ver todos los comandos disponibles.\n\n¡Vamos a darle! 🔥`,
       });
       return;
     }
 
-    if (texto.includes("#mejenga") || texto.includes("#partido")) {
+    if (texto.includes("#mejenga") || texto.includes("#partido") || texto.includes("#fuchibol")) {
+      if (partidos[chatId]) {
+        await sock.sendMessage(chatId, {
+          text: "⚠️ Ya hay un partido activo. Usa #cancelar para empezar de nuevo.",
+        });
+        return;
+      }
       partidos[chatId] = [];
       delete equiposGenerados[chatId];
       delete listasGeneradas[chatId];
+      delete horaPartido[chatId];
       await sock.sendMessage(chatId, {
         text: "¡Ey! Ya estoy activo para organizar el partido. Manda #yo para unirse 🔥⚽",
       });
@@ -141,7 +163,9 @@ async function connectBot() {
       const equipo1 = shuffled.slice(0, mitad);
       const equipo2 = shuffled.slice(mitad);
 
-      const mensaje = `⚽ Equipos listos:
+      const horaTexto = horaPartido[chatId] ? `\n🕒 *Hora del partido:* ${horaPartido[chatId]}` : "";
+
+      const mensaje = `⚽ Equipos listos:${horaTexto}
 
 🏅 *Equipo COLORES:*
 - ${equipo1.join("\n- ")}
@@ -152,6 +176,19 @@ async function connectBot() {
       equiposGenerados[chatId] = mensaje;
 
       await sock.sendMessage(chatId, { text: mensaje });
+    } else if (texto.includes("#hora")) {
+      const partes = texto.split(" ");
+      if (partes.length < 2 || !/^\d{1,2}:\d{2}$/.test(partes[1])) {
+        await sock.sendMessage(chatId, {
+          text: "⏰ Usa el formato correcto: #hora HH:MM (ej: #hora 17:00)", // analizar como podemos mejorar el tema de las horas, para el tipo de formato.
+        });
+        return;
+      }
+
+      horaPartido[chatId] = partes[1];
+      await sock.sendMessage(chatId, {
+        text: `🕒 Hora del partido programada para *${partes[1]}*. Se limpiarán los datos automáticamente después de esa hora.`
+      });
     } else if (texto.includes("#lista")) {
       const lista = partidos[chatId];
       if (!lista || lista.length === 0) {
@@ -175,6 +212,7 @@ async function connectBot() {
         delete partidos[chatId];
         delete equiposGenerados[chatId];
         delete listasGeneradas[chatId];
+        delete horaPartido[chatId];
         await sock.sendMessage(chatId, {
           text: "❌ El partido ha sido cancelado. ¡Nos vemos la próxima! 👋",
         });
@@ -185,18 +223,21 @@ async function connectBot() {
       }
     } else if (texto.includes("#ayuda")) {
       await sock.sendMessage(chatId, {
-        text: `📖 *Lista de comandos disponibles:*
+        text: `📖 *Comandos de FUTBOT:*
 
-▶️ #partido o #mejenga — Crea un nuevo partido.
-▶️ #yo — Te apunta con tu nombre de WhatsApp.
-▶️ #yo <nombre> — Apunta a otra persona manualmente.
-▶️ #no — Te quita de la lista.
-▶️ #no <nombre> — Quita a otra persona de la lista.
-▶️ #equipos — Genera equipos aleatorios (mínimo 10 personas).
-▶️ #lista — Muestra quiénes están apuntados.
-▶️ #cancelar — Cancela el partido actual.
-▶️ #info — Muestra información sobre el bot y su creador.
-▶️ #ayuda — Muestra esta lista de comandos.`,
+⚽ *#partido* o *#mejenga* — Inicia un nuevo partido.
+🙋 *#yo* — Te apunta con tu nombre de WhatsApp.
+✍️ *#yo <nombre>* — Apunta a alguien más (ej: #yo roberto).
+🙅 *#no* — Te quita de la lista.
+❌ *#no <nombre>* — Quita a otra persona.
+🔀 *#equipos* — Arma equipos aleatorios (mínimo 10 personas).
+📋 *#lista* — Muestra quiénes están apuntados.
+⏰ *#hora <HH:MM>* — Define la hora del partido y borra los datos luego de esa hora.
+🗑️ *#cancelar* — Cancela el partido actual.
+ℹ️ *#info* — Info sobre el bot, redes y donaciones.
+🆘 *#ayuda* — Muestra esta lista de comandos.
+
+Cualquier duda, ¡aquí estoy para ayudarte! 🤖`,
       });
     } else if (texto.includes("#info")) {
       await sock.sendMessage(chatId, {
