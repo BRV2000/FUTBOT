@@ -68,7 +68,7 @@ async function connectBot() {
 
     if (texto.includes("hola") || texto.includes("buenas")) {
       await sock.sendMessage(chatId, {
-        text: `¡Hola ${nombre}! 👋 Soy FUTBOT, tu asistente para organizar partidos ⚽\n\n📌 Usa *#partido* o *#mejenga* para crear una nueva lista de jugadores.\n❓ Escribe *#ayuda* para ver todos los comandos disponibles.\n\n¡Vamos a darle! 🔥`,
+        text: `¡Hola ${nombre}! 👋 Soy FUTBOT, tu asistente para organizar partidos ⚽\n\n📌 Usa *#partido* o *#mejenga* para crear una nueva lista de jugadores.\n❓ Escribe *#ayuda* para ver todos los comandos disponibles.\n\n¡Vamos a darle! 🔥 *BETA-VERSION*`,
       });
       return;
     }
@@ -144,7 +144,7 @@ async function connectBot() {
       } else {
         await sock.sendMessage(chatId, { text: `⚠️ ${nombreEliminar} no está en la lista.` });
       }
-    } else if (texto.includes("#equipos")) {
+    } else if (texto.includes("#equipos") || texto.includes("#mezclar")) {
       const lista = partidos[chatId];
       if (!lista || lista.length < 10) {
         await sock.sendMessage(chatId, {
@@ -153,17 +153,12 @@ async function connectBot() {
         return;
       }
 
-      if (equiposGenerados[chatId]) {
-        await sock.sendMessage(chatId, { text: equiposGenerados[chatId] });
-        return;
-      }
-
       const shuffled = [...lista].sort(() => Math.random() - 0.5);
       const mitad = Math.ceil(shuffled.length / 2);
       const equipo1 = shuffled.slice(0, mitad);
       const equipo2 = shuffled.slice(mitad);
 
-      const horaTexto = horaPartido[chatId] ? `\n🕒 *Hora del partido:* ${horaPartido[chatId]}` : "";
+      const horaTexto = horaPartido[chatId] ? `\n🕒 *Hora del partido:* ${horaPartido[chatId]}` : "\n🕒 *Hora del partido:* Por definir";
 
       const mensaje = `⚽ Equipos listos:${horaTexto}
 
@@ -178,9 +173,9 @@ async function connectBot() {
       await sock.sendMessage(chatId, { text: mensaje });
     } else if (texto.includes("#hora")) {
       const partes = texto.split(" ");
-      if (partes.length < 2 || !/^\d{1,2}:\d{2}$/.test(partes[1])) {
+      if (partes.length < 2 || !/^[0-2]?\d:[0-5]\d$/.test(partes[1])) {
         await sock.sendMessage(chatId, {
-          text: "⏰ Usa el formato correcto: #hora HH:MM (ej: #hora 17:00)", // analizar como podemos mejorar el tema de las horas, para el tipo de formato.
+          text: "⏰ Usa el formato correcto: #hora HH:MM (ej: #hora 5:30 o 17:00)",
         });
         return;
       }
@@ -231,6 +226,7 @@ async function connectBot() {
 🙅 *#no* — Te quita de la lista.
 ❌ *#no <nombre>* — Quita a otra persona.
 🔀 *#equipos* — Arma equipos aleatorios (mínimo 10 personas).
+🎲 *#mezclar* — Regenera los equipos aleatoriamente.
 📋 *#lista* — Muestra quiénes están apuntados.
 ⏰ *#hora <HH:MM>* — Define la hora del partido y borra los datos luego de esa hora.
 🗑️ *#cancelar* — Cancela el partido actual.
@@ -243,7 +239,8 @@ Cualquier duda, ¡aquí estoy para ayudarte! 🤖`,
       await sock.sendMessage(chatId, {
         text: `🤖 *FutBot - por Brandon Robles*
 
-Este bot fue creado con ❤️ para facilitar la organización de partidos de fútbol entre amigos.
+Este bot fue creado con ❤️ para facilitar la organización de partidos de fútbol entre amigos. *Versión BETA*
+Esta versión es una prueba y puede tener errores. Si encuentras alguno, ¡avísame!
 
 🌐 Más sobre mí:
 GitHub: https://github.com/BRV2000/BRV2000
