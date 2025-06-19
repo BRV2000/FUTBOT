@@ -25,7 +25,8 @@ async function connectBot() {
     if (connection === "open") console.log("✅ Bot conectado correctamente 🔥");
     if (connection === "close") {
       const shouldReconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+        lastDisconnect?.error?.output?.statusCode !==
+        DisconnectReason.loggedOut;
       console.log("🔌 Conexión cerrada. Reintentando:", shouldReconnect);
       if (shouldReconnect) connectBot();
     }
@@ -42,14 +43,15 @@ async function connectBot() {
 
   setInterval(() => {
     const ahora = new Date();
-    const horaActual = ahora.toTimeString().slice(0, 5);
 
     for (const chatId in horaPartido) {
-      if (horaPartido[chatId] === horaActual) {
+      const horaDefinida = horaPartido[chatId];
+      if (ahora >= horaDefinida) {
         delete partidos[chatId];
         delete equiposGenerados[chatId];
         delete listasGeneradas[chatId];
         delete horaPartido[chatId];
+        console.log(`🧹 Se limpiaron los datos del partido en ${chatId}`);
       }
     }
   }, 60000);
@@ -73,7 +75,11 @@ async function connectBot() {
       return;
     }
 
-    if (texto.includes("#mejenga") || texto.includes("#partido") || texto.includes("#fuchibol")) {
+    if (
+      texto.includes("#mejenga") ||
+      texto.includes("#partido") ||
+      texto.includes("#fuchibol")
+    ) {
       if (partidos[chatId]) {
         await sock.sendMessage(chatId, {
           text: "⚠️ Ya hay un partido activo. Usa #cancelar para empezar de nuevo.",
@@ -85,7 +91,7 @@ async function connectBot() {
       delete listasGeneradas[chatId];
       delete horaPartido[chatId];
       await sock.sendMessage(chatId, {
-       text: "✅ ¡Partido creado! Ahora sí, que empiece la mejenga ⚽🔥\n\nSi querés jugar, mandá *#yo* o *#yo <nombre>* para apuntarte.",
+        text: "✅ ¡Partido creado! Ahora sí, que empiece la mejenga ⚽🔥\n\nSi querés jugar, mandá *#yo* o *#yo <nombre>* para apuntarte.",
       });
     } else if (texto.startsWith("#yo")) {
       if (!partidos[chatId]) {
@@ -95,10 +101,15 @@ async function connectBot() {
         return;
       }
 
-      const partes = texto.split(" ").map(p => p.trim()).filter(p => p);
+      const partes = texto
+        .split(" ")
+        .map((p) => p.trim())
+        .filter((p) => p);
 
       if (partes.length === 1) {
-        const yaApuntado = partidos[chatId].some((jugador) => jugador === nombre);
+        const yaApuntado = partidos[chatId].some(
+          (jugador) => jugador === nombre
+        );
         if (yaApuntado) {
           await sock.sendMessage(chatId, {
             text: `⚠️ ${nombre}, ya estás en la lista.`,
@@ -111,7 +122,9 @@ async function connectBot() {
         await sock.sendMessage(chatId, { text: `✅ Te apuntaste, ${nombre}.` });
       } else {
         const nombreManual = partes.slice(1).join(" ");
-        const yaApuntado = partidos[chatId].some((jugador) => jugador.toLowerCase() === nombreManual.toLowerCase());
+        const yaApuntado = partidos[chatId].some(
+          (jugador) => jugador.toLowerCase() === nombreManual.toLowerCase()
+        );
         if (yaApuntado) {
           await sock.sendMessage(chatId, {
             text: `⚠️ ${nombreManual} ya está en la lista.`,
@@ -121,7 +134,9 @@ async function connectBot() {
         partidos[chatId].push(nombreManual);
         delete equiposGenerados[chatId];
         delete listasGeneradas[chatId];
-        await sock.sendMessage(chatId, { text: `✅ ${nombreManual} fue agregado a la lista.` });
+        await sock.sendMessage(chatId, {
+          text: `✅ ${nombreManual} fue agregado a la lista.`,
+        });
       }
     } else if (texto.startsWith("#no")) {
       if (!partidos[chatId]) {
@@ -130,21 +145,79 @@ async function connectBot() {
         });
         return;
       }
-      const partes = texto.split(" ").map(p => p.trim()).filter(p => p);
+      const partes = texto
+        .split(" ")
+        .map((p) => p.trim())
+        .filter((p) => p);
       let nombreEliminar = nombre;
       if (partes.length > 1) {
         nombreEliminar = partes.slice(1).join(" ");
       }
-      const index = partidos[chatId].findIndex(j => j.toLowerCase() === nombreEliminar.toLowerCase());
+      const index = partidos[chatId].findIndex(
+        (j) => j.toLowerCase() === nombreEliminar.toLowerCase()
+      );
       if (index !== -1) {
         partidos[chatId].splice(index, 1);
         delete equiposGenerados[chatId];
         delete listasGeneradas[chatId];
-        await sock.sendMessage(chatId, { text: `❌ ${nombreEliminar} ha sido eliminado de la lista.` });
+        await sock.sendMessage(chatId, {
+          text: `❌ ${nombreEliminar} ha sido eliminado de la lista.`,
+        });
       } else {
-        await sock.sendMessage(chatId, { text: `⚠️ ${nombreEliminar} no está en la lista.` });
+        await sock.sendMessage(chatId, {
+          text: `⚠️ ${nombreEliminar} no está en la lista.`,
+        });
       }
-    } else if (texto.includes("#equipos") || texto.includes("#mezclar")) {
+      // al usar el comando #equipos me vuelve a generar los equipos
+    } else if (texto.includes("#equipos") || texto.includes("#equipo")) {
+      if (!partidos[chatId]) {
+        await sock.sendMessage(chatId, {
+          text: "⚠️ No hay partido creado. Usa #partido primero.",
+        });
+        return;
+      }
+      const lista = partidos[chatId];
+      if (!lista || lista.length < 10) {
+        await sock.sendMessage(chatId, {
+          text: "⚠️ Necesitamos al menos 10 personas para armar equipos.",
+        });
+        return;
+      }
+      if (equiposGenerados[chatId]) {
+        await sock.sendMessage(chatId, { text: equiposGenerados[chatId] });
+        return;
+      }
+
+      const shuffled = [...lista].sort(() => Math.random() - 0.5);
+      const mitad = Math.ceil(shuffled.length / 2);
+      const equipo1 = shuffled.slice(0, mitad);
+      const equipo2 = shuffled.slice(mitad);
+
+      const horaTexto = horaPartido[chatId] //verificar el mensaje de hora
+        ? `\n🕒 *Hora del partido:* ${horaPartido[chatId].toLocaleTimeString(
+            [],
+            { hour: "2-digit", minute: "2-digit" }
+          )}`
+        : `\n🕒 *Hora del partido:* Por definir`;
+
+      const mensaje = `⚽ Equipos listos:${horaTexto}
+
+🏅 *Equipo COLORES:*
+- ${equipo1.join("\n- ")}
+
+🏅 *Equipo NEGRO:*
+- ${equipo2.join("\n- ")}`;
+
+      equiposGenerados[chatId] = mensaje;
+
+      await sock.sendMessage(chatId, { text: mensaje });
+    } else if (texto.includes("#mezclar") || texto.includes("#mezcla")) {
+      if (!partidos[chatId]) {
+        await sock.sendMessage(chatId, {
+          text: "⚠️ No hay partido creado. Usa #partido primero.",
+        });
+        return;
+      }
       const lista = partidos[chatId];
       if (!lista || lista.length < 10) {
         await sock.sendMessage(chatId, {
@@ -158,9 +231,14 @@ async function connectBot() {
       const equipo1 = shuffled.slice(0, mitad);
       const equipo2 = shuffled.slice(mitad);
 
-      const horaTexto = horaPartido[chatId] ? `\n🕒 *Hora del partido:* ${horaPartido[chatId]}` : "\n🕒 *Hora del partido:* Por definir";
+      const horaTexto = horaPartido[chatId]
+        ? `\n🕒 *Hora del partido:* ${horaPartido[chatId].toLocaleTimeString(
+            [],
+            { hour: "2-digit", minute: "2-digit" }
+          )}`
+        : "\n🕒 *Hora del partido:* Por definir";
 
-      const mensaje = `⚽ Equipos listos:${horaTexto}
+      const mensaje = `🔁 *Equipos mezclados:*${horaTexto}
 
 🏅 *Equipo COLORES:*
 - ${equipo1.join("\n- ")}
@@ -169,7 +247,6 @@ async function connectBot() {
 - ${equipo2.join("\n- ")}`;
 
       equiposGenerados[chatId] = mensaje;
-
       await sock.sendMessage(chatId, { text: mensaje });
     } else if (texto.includes("#hora")) {
       const partes = texto.split(" ");
@@ -180,9 +257,28 @@ async function connectBot() {
         return;
       }
 
-      horaPartido[chatId] = partes[1];
+      const [hora, minutos] = partes[1].split(":").map(Number);
+      const ahora = new Date();
+
+      let fechaPartido = new Date(
+        ahora.getFullYear(),
+        ahora.getMonth(),
+        ahora.getDate(),
+        hora,
+        minutos
+      );
+
+      if (fechaPartido < ahora) {
+        fechaPartido.setDate(fechaPartido.getDate() + 1); // si ya pasó, se mueve al día siguiente
+      }
+
+      horaPartido[chatId] = fechaPartido;
+
       await sock.sendMessage(chatId, {
-        text: `🕒 Hora del partido programada para *${partes[1]}*. Se limpiarán los datos automáticamente después de esa hora.`
+        text: `🕒 Hora del partido programada para *${fechaPartido.toLocaleTimeString(
+          [],
+          { hour: "2-digit", minute: "2-digit" }
+        )}*. Se limpiarán los datos automáticamente después de esa hora.`,
       });
     } else if (texto.includes("#lista")) {
       const lista = partidos[chatId];
@@ -198,8 +294,9 @@ async function connectBot() {
         return;
       }
 
-      const mensaje = `📋 *Lista de jugadores apuntados:*\n` + 
-  lista.map((jugador, i) => `${i + 1}. ${jugador}`).join("\n");
+      const mensaje =
+        `📋 *Lista de jugadores apuntados:*\n` +
+        lista.map((jugador, i) => `${i + 1}. ${jugador}`).join("\n");
       listasGeneradas[chatId] = mensaje;
       await sock.sendMessage(chatId, { text: mensaje });
     } else if (texto.includes("#cancelar")) {
@@ -249,7 +346,7 @@ LinkedIn: https://www.linkedin.com/in/brandonroblesv/
 ☕ ¿Querés apoyar el proyecto?
 https://coff.ee/brandonroblesv
 
-¡Gracias por usar el bot! ⚽🔥`
+¡Gracias por usar el bot! ⚽🔥`,
       });
     }
   });
