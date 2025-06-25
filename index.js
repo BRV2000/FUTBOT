@@ -248,18 +248,49 @@ async function connectBot() {
 
       equiposGenerados[chatId] = mensaje;
       await sock.sendMessage(chatId, { text: mensaje });
-    } else if (texto.includes("#hora")) {
-      const partes = texto.split(" ");
-      if (partes.length < 2 || !/^[0-2]?\d:[0-5]\d$/.test(partes[1])) {
+    } else if (texto.startsWith("#hora")) {
+      const partes = texto.split(" ").map((p) => p.trim());
+
+      if (partes.length === 1) {
+        if (!horaPartido[chatId]) {
+          await sock.sendMessage(chatId, {
+            text: "⏰ No hay una hora establecida. Para ponerla, usá *#hora HH:MM* (ej: #hora 17:00 o poner *AM* o *PM*).",
+          });
+        } else {
+          await sock.sendMessage(chatId, {
+            text: `🕒 La hora actual del partido es *${horaPartido[
+              chatId
+            ].toLocaleString()}*.\n\nPara cambiarla usá *#hora HH:MM* o *#hora quitar* para eliminarla.`,
+          });
+        }
+        return;
+      }
+
+      const parametro = partes[1];
+
+      if (parametro === "quitar") {
+        if (!horaPartido[chatId]) {
+          await sock.sendMessage(chatId, {
+            text: "⏰ No hay ninguna hora establecida para eliminar.",
+          });
+        } else {
+          delete horaPartido[chatId];
+          await sock.sendMessage(chatId, {
+            text: "✅ La hora del partido fue eliminada. Podés establecer otra cuando gustés.",
+          });
+        }
+        return;
+      }
+
+      if (!/^[0-2]?\d:[0-5]\d$/.test(parametro)) {
         await sock.sendMessage(chatId, {
-          text: "⏰ Usa el formato correcto: #hora HH:MM (ej: #hora 5:30 o 17:00)",
+          text: "⏰ Formato inválido. Usá: *#hora HH:MM* (ej: #hora 17:00, poner *AM* o *PM*).",
         });
         return;
       }
 
-      const [hora, minutos] = partes[1].split(":").map(Number);
+      const [hora, minutos] = parametro.split(":").map(Number);
       const ahora = new Date();
-
       let fechaPartido = new Date(
         ahora.getFullYear(),
         ahora.getMonth(),
@@ -268,17 +299,20 @@ async function connectBot() {
         minutos
       );
 
-      if (fechaPartido < ahora) {
-        fechaPartido.setDate(fechaPartido.getDate() + 1); // si ya pasó, se mueve al día siguiente
+      // Si ya pasó esa hora hoy, se mueve para el día siguiente
+      if (fechaPartido <= ahora) {
+        fechaPartido.setDate(fechaPartido.getDate() + 1);
       }
 
+      const yaHabia = horaPartido[chatId];
       horaPartido[chatId] = fechaPartido;
 
       await sock.sendMessage(chatId, {
-        text: `🕒 Hora del partido programada para *${fechaPartido.toLocaleTimeString(
-          [],
-          { hour: "2-digit", minute: "2-digit" }
-        )}*. Se limpiarán los datos automáticamente después de esa hora.`,
+        text: `${
+          yaHabia
+            ? "🔁 La hora fue actualizada a"
+            : "✅ Hora del partido establecida para"
+        } *${fechaPartido.toLocaleString()}*.\nSe limpiarán los datos automáticamente luego de esa hora.`,
       });
     } else if (texto.includes("#lista")) {
       const lista = partidos[chatId];
@@ -317,20 +351,24 @@ async function connectBot() {
       await sock.sendMessage(chatId, {
         text: `📖 *Comandos de FUTBOT:*
 
-⚽ *#partido* o *#mejenga* — Inicia un nuevo partido.\n
-🙋 *#yo* — Te apunta con tu nombre de WhatsApp.
-✍️ *#yo <nombre>* — Apunta a alguien más (ej: #yo roberto).\n
-🙅 *#no* — Te quita de la lista.
-❌ *#no <nombre>* — Quita a otra persona.\n
-🔀 *#equipos* — Arma equipos aleatorios (mínimo 10 personas).\n
-🎲 *#mezclar* — Regenera los equipos aleatoriamente.\n
-📋 *#lista* — Muestra quiénes están apuntados.\n
-⏰ *#hora <HH:MM>* — Define la hora del partido y borra los datos luego de esa hora.\n
-🗑️ *#cancelar* — Cancela el partido actual.\n
-ℹ️ *#info* — Info sobre el bot, redes y donaciones.\n
-🆘 *#ayuda* — Muestra esta lista de comandos.
+⚽ *#partido* — Inicia la lista de jugadores.  
+🙋 *#yo* / *#yo <nombre>* — Te apunta o apunta a alguien.  
+🙅 *#no* / *#no <nombre>* — Te quita o quita a alguien.  
+📋 *#lista* — Muestra quiénes están apuntados.  
+🔀 *#equipos* — Genera equipos (solo 1 vez).  
+🎲 *#mezclar* — Regenera los equipos.  
+⏰ *#hora HH:MM* — Define la hora del partido, poner *AM* o *PM*.  
+🧼 *#hora quitar* — Elimina la hora definida.  
+🗑️ *#cancelar* — Borra todo del partido.  
+ℹ️ *#info* — Sobre el bot y el creador.
 
-Cualquier duda, ¡aquí estoy para ayudarte! 🤖`,
+💡 *Tips:*  
+- Se necesitan *10 personas mínimo* para armar equipos.  
+- Los datos se borran auto cuando llega la hora.  
+- Para cambiar la hora, solo volvé a usar *#hora*.
+
+¡Gracias por usar *FUTBOT*! ⚽🔥  
+❤️Desarrollado por *Brandon Robles Vargas*.`,
       });
     } else if (texto.includes("#info")) {
       await sock.sendMessage(chatId, {
