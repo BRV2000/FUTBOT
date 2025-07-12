@@ -5,10 +5,13 @@ const {
 } = require("baileys");
 const qrcode = require("qrcode-terminal");
 
+//hora del partido
+const { obtenerHora } = require("./managers/horaPartidoManager");
+const { formatHoraCompleta } = require("./utils/timeUtils");
+
 const partidos = {}; // Lista de jugadores por grupo
 const equiposGenerados = {}; // Equipos ya formados
 const listasGeneradas = {}; // Cache de listas de jugadores
-const horaPartido = {}; // Hora programada del partido
 
 async function connectBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
@@ -40,20 +43,11 @@ async function connectBot() {
       });
     }
   });
+  // Nuevo manager para manejar la hora del partido
+  const { verificarYLimpiarTodos } = require("./managers/horaPartidoManager");
 
   setInterval(() => {
-    const ahora = new Date();
-
-    for (const chatId in horaPartido) {
-      const horaDefinida = horaPartido[chatId];
-      if (ahora >= horaDefinida) {
-        delete partidos[chatId];
-        delete equiposGenerados[chatId];
-        delete listasGeneradas[chatId];
-        delete horaPartido[chatId];
-        console.log(`🧹 Se limpiaron los datos del partido en ${chatId}`);
-      }
-    }
+    verificarYLimpiarTodos(partidos, equiposGenerados, listasGeneradas);
   }, 60000);
 
   sock.ev.on("messages.upsert", async ({ messages }) => {
@@ -89,7 +83,6 @@ async function connectBot() {
       partidos[chatId] = [];
       delete equiposGenerados[chatId];
       delete listasGeneradas[chatId];
-      delete horaPartido[chatId];
       await sock.sendMessage(chatId, {
         text: "✅ ¡Partido creado! Ahora sí, que empiece la mejenga ⚽🔥\n\nSi querés jugar, mandá *#yo* o *#yo <nombre>* para apuntarte.",
       });
@@ -183,24 +176,32 @@ async function connectBot() {
         });
         return;
       }
+      // Si ya hay equipos generados
       if (equiposGenerados[chatId]) {
         await sock.sendMessage(chatId, { text: equiposGenerados[chatId] });
+
+        // 🧠 Nueva lógica: si la hora ya está definida, la mostramos como mensaje aparte
+        const horaDefinida = obtenerHora(chatId);
+        const text = formatHoraCompleta(horaDefinida);
+        if (horaDefinida) {
+          await sock.sendMessage(chatId, {
+            text: `🕒 *Hora del partido:* ${text}`,
+          });
+        }
         return;
       }
-
+      // Si no hay equipos generados, se crean
       const shuffled = [...lista].sort(() => Math.random() - 0.5);
       const mitad = Math.ceil(shuffled.length / 2);
       const equipo1 = shuffled.slice(0, mitad);
       const equipo2 = shuffled.slice(mitad);
 
-      const horaTexto = horaPartido[chatId] //verificar el mensaje de hora
-        ? `\n🕒 *Hora del partido:* ${horaPartido[chatId].toLocaleTimeString(
-            [],
-            { hour: "2-digit", minute: "2-digit" }
-          )}`
-        : `\n🕒 *Hora del partido:* Por definir`;
+      /*const horaDefinida = obtenerHora(chatId);
+      const horaTexto = horaDefinida
+        ? `\n🕒 *Hora del partido:* ${formatHoraCompleta(horaDefinida)}`
+        : `\n🕒 *Hora del partido:* Por definir`;*/
 
-      const mensaje = `⚽ Equipos listos:${horaTexto}
+      const mensaje = `⚽ Equipos listos:
 
 🏅 *Equipo COLORES:*
 - ${equipo1.join("\n- ")}
@@ -211,6 +212,12 @@ async function connectBot() {
       equiposGenerados[chatId] = mensaje;
 
       await sock.sendMessage(chatId, { text: mensaje });
+      const horaDefinida = obtenerHora(chatId);
+      if (horaDefinida) {
+        await sock.sendMessage(chatId, {
+          text: `🕒 *Hora del partido:* ${formatHoraCompleta(horaDefinida)}`,
+        });
+      }
     } else if (texto.includes("#mezclar") || texto.includes("#mezcla")) {
       if (!partidos[chatId]) {
         await sock.sendMessage(chatId, {
@@ -225,20 +232,18 @@ async function connectBot() {
         });
         return;
       }
-
+      // Se mezclan equipos
       const shuffled = [...lista].sort(() => Math.random() - 0.5);
       const mitad = Math.ceil(shuffled.length / 2);
       const equipo1 = shuffled.slice(0, mitad);
       const equipo2 = shuffled.slice(mitad);
 
-      const horaTexto = horaPartido[chatId]
-        ? `\n🕒 *Hora del partido:* ${horaPartido[chatId].toLocaleTimeString(
-            [],
-            { hour: "2-digit", minute: "2-digit" }
-          )}`
-        : "\n🕒 *Hora del partido:* Por definir";
+      /*const horaDefinida = obtenerHora(chatId);
+      const horaTexto = horaDefinida
+        ? `\n🕒 *Hora del partido:* ${formatHoraCompleta(horaDefinida)}`
+        : "\n🕒 *Hora del partido:* Por definir";*/
 
-      const mensaje = `🔁 *Equipos mezclados:*${horaTexto}
+      const mensaje = `🔁 *Equipos mezclados:*
 
 🏅 *Equipo COLORES:*
 - ${equipo1.join("\n- ")}
@@ -248,72 +253,17 @@ async function connectBot() {
 
       equiposGenerados[chatId] = mensaje;
       await sock.sendMessage(chatId, { text: mensaje });
-    } else if (texto.startsWith("#hora")) {
-      const partes = texto.split(" ").map((p) => p.trim());
-
-      if (partes.length === 1) {
-        if (!horaPartido[chatId]) {
-          await sock.sendMessage(chatId, {
-            text: "⏰ No hay una hora establecida. Para ponerla, usá *#hora HH:MM* (ej: #hora 17:00 o poner *AM* o *PM*).",
-          });
-        } else {
-          await sock.sendMessage(chatId, {
-            text: `🕒 La hora actual del partido es *${horaPartido[
-              chatId
-            ].toLocaleString()}*.\n\nPara cambiarla usá *#hora HH:MM* o *#hora quitar* para eliminarla.`,
-          });
-        }
-        return;
-      }
-
-      const parametro = partes[1];
-
-      if (parametro === "quitar") {
-        if (!horaPartido[chatId]) {
-          await sock.sendMessage(chatId, {
-            text: "⏰ No hay ninguna hora establecida para eliminar.",
-          });
-        } else {
-          delete horaPartido[chatId];
-          await sock.sendMessage(chatId, {
-            text: "✅ La hora del partido fue eliminada. Podés establecer otra cuando gustés.",
-          });
-        }
-        return;
-      }
-
-      if (!/^[0-2]?\d:[0-5]\d$/.test(parametro)) {
+      const horaDefinida = obtenerHora(chatId);
+      if (horaDefinida) {
         await sock.sendMessage(chatId, {
-          text: "⏰ Formato inválido. Usá: *#hora HH:MM* (ej: #hora 17:00, poner *AM* o *PM*).",
+          text: `🕒 *Hora del partido:* ${formatHoraCompleta(horaDefinida)}`,
         });
-        return;
       }
+    } else if (texto.startsWith("#hora")) {
+      // nuevo #hora (por test)
 
-      const [hora, minutos] = parametro.split(":").map(Number);
-      const ahora = new Date();
-      let fechaPartido = new Date(
-        ahora.getFullYear(),
-        ahora.getMonth(),
-        ahora.getDate(),
-        hora,
-        minutos
-      );
-
-      // Si ya pasó esa hora hoy, se mueve para el día siguiente
-      if (fechaPartido <= ahora) {
-        fechaPartido.setDate(fechaPartido.getDate() + 1);
-      }
-
-      const yaHabia = horaPartido[chatId];
-      horaPartido[chatId] = fechaPartido;
-
-      await sock.sendMessage(chatId, {
-        text: `${
-          yaHabia
-            ? "🔁 La hora fue actualizada a"
-            : "✅ Hora del partido establecida para"
-        } *${fechaPartido.toLocaleString()}*.\nSe limpiarán los datos automáticamente luego de esa hora.`,
-      });
+      const manejarComandoHora = require("./commands/hora");
+      await manejarComandoHora(sock, chatId, texto);
     } else if (texto.includes("#lista")) {
       const lista = partidos[chatId];
       if (!lista || lista.length === 0) {
@@ -338,7 +288,6 @@ async function connectBot() {
         delete partidos[chatId];
         delete equiposGenerados[chatId];
         delete listasGeneradas[chatId];
-        delete horaPartido[chatId];
         await sock.sendMessage(chatId, {
           text: "❌ El partido ha sido cancelado. ¡Nos vemos la próxima! 👋",
         });
