@@ -5,6 +5,9 @@ const {
 } = require("baileys");
 const qrcode = require("qrcode-terminal");
 
+// Importamos el logger
+const logger = require("./utils/logger");
+
 //hora del partido
 const { obtenerHora } = require("./managers/horaPartidoManager");
 const { formatHoraCompleta } = require("./utils/timeUtils");
@@ -260,10 +263,10 @@ async function connectBot() {
         });
       }
     } else if (texto.startsWith("#hora")) {
-      // nuevo #hora (por test)
 
       const manejarComandoHora = require("./commands/hora");
       await manejarComandoHora(sock, chatId, texto);
+
     } else if (texto.includes("#lista")) {
       const lista = partidos[chatId];
       if (!lista || lista.length === 0) {
