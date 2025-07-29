@@ -1,0 +1,2 @@
+[29-07-2025 10:46:42] [ERROR] [MSG_ERROR] ReferenceError: messages is not defined
+    at connectBot (C:\Users\Brandon Robles Varga\FUTBOT\index.js:65:19)

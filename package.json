@@ -7,6 +7,7 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.18",
     "baileys": "^6.17.16",
     "luxon": "^3.7.1",
     "qrcode-terminal": "^0.12.0",
