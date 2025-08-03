@@ -209,11 +209,7 @@ async function connectBot() {
         const equipo1 = shuffled.slice(0, mitad);
         const equipo2 = shuffled.slice(mitad);
 
-        /*const horaDefinida = obtenerHora(chatId);
-      const horaTexto = horaDefinida
-        ? `\n🕒 *Hora del partido:* ${formatHoraCompleta(horaDefinida)}`
-        : `\n🕒 *Hora del partido:* Por definir`;*/
-
+    
         const mensaje = `⚽ Equipos listos:
 
 🏅 *Equipo COLORES:*
@@ -251,10 +247,6 @@ async function connectBot() {
         const equipo1 = shuffled.slice(0, mitad);
         const equipo2 = shuffled.slice(mitad);
 
-        /*const horaDefinida = obtenerHora(chatId);
-      const horaTexto = horaDefinida
-        ? `\n🕒 *Hora del partido:* ${formatHoraCompleta(horaDefinida)}`
-        : "\n🕒 *Hora del partido:* Por definir";*/
 
         const mensaje = `🔁 *Equipos mezclados:*
 
