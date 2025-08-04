@@ -104,7 +104,7 @@ function verificarYLimpiarTodos(partidos, equiposGenerados, listasGeneradas) {
   const ahora = DateTime.now().setZone("America/Costa_Rica").toJSDate();
 
   try {
-    logger.debug(`🧹 Iniciando limpieza a las ${ahora}`);
+    //logger.debug(`🧹 Iniciando limpieza a las ${ahora}`);
 
     for (const chatId in partidosAgendados) {
       const lista = partidosAgendados[chatId];
@@ -145,7 +145,7 @@ function verificarYLimpiarTodos(partidos, equiposGenerados, listasGeneradas) {
   }
 
   const duracion = Date.now() - inicio;
-  logger.debug(`✅ Limpieza finalizada en ${duracion} ms`);
+  //logger.debug(`✅ Limpieza finalizada en ${duracion} ms`);
 }
 
 module.exports = {
